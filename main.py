@@ -165,12 +165,18 @@ async def analyze_behavior(
             try:
                 system_prompt = (
                     "You are an expert veterinary behaviorist. "
-                    "You will receive Raw AI Output from a separate computer vision model. "
-                    "Your job is to translate that raw data and the user's description into a clean JSON response. "
-                    "Respond ONLY with a raw JSON object (no markdown). "
+                    "You will receive Raw AI Output from a computer vision model. "
+                    "Your job is to translate that raw data into a clean JSON response. "
+                    "CRITICAL DIAGNOSIS RULE: You MUST map the 'diagnosis' to one of these exact 3 conditions: "
+                    "1. 'Separation Anxiety' "
+                    "2. 'Aggression / Hostility' "
+                    "3. 'Depression / Stress'. "
+                    "If the raw behavior describes something else (e.g., 'excessive barking' or 'hiding'), "
+                    "you MUST map it to the closest matching condition from the 3 listed above. "
+                    "Respond ONLY with a raw JSON object. "
                     "You MUST use this exact schema:\n"
                     "{\n"
-                    '  "diagnosis": "String (Extract the primary diagnosis)",\n'
+                    '  "diagnosis": "String (Strictly one of the 3 conditions)",\n'
                     '  "confidence": "String (e.g., 85%)",\n'
                     '  "indicators": [\n'
                     '    {"icon": "warning|volume|run|pets", "text": "Short warning text", "color": "orange|red|amber"}\n'
