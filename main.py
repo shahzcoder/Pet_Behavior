@@ -158,36 +158,40 @@ async def analyze_behavior(
             animal     = animal or "unknown",
         )
 
-        # ── 2. Format output with Groq for the Flutter UI ──────────────
+    # ── 2. Format output with Groq for the Flutter UI ──────────────
         final_ui_result = None
 
         if groq_client:
             try:
                 system_prompt = (
                     "You are an expert veterinary behaviorist. "
-                    "You will receive Raw AI Output from a computer vision model. "
-                    "Your job is to translate that raw data into a clean JSON response. "
-                    "CRITICAL DIAGNOSIS RULE: You MUST map the 'diagnosis' to one of these exact 3 conditions: "
-                    "1. 'Separation Anxiety' "
-                    "2. 'Aggression / Hostility' "
-                    "3. 'Depression / Stress'. "
-                    "If the raw behavior describes something else (e.g., 'excessive barking' or 'hiding'), "
-                    "you MUST map it to the closest matching condition from the 3 listed above. "
-                    "Respond ONLY with a raw JSON object. "
-                    "You MUST use this exact schema:\n"
+                    "Your ONLY job is to output a strictly formatted JSON object. "
+                    "CRITICAL RULE: You MUST map the situation to one of these exact 3 diagnoses: "
+                    "1. 'Separation Anxiety'\n2. 'Aggression / Hostility'\n3. 'Depression / Stress'.\n\n"
+                    "REQUIRED JSON SCHEMA:\n"
                     "{\n"
-                    '  "diagnosis": "String (Strictly one of the 3 conditions)",\n'
-                    '  "confidence": "String (e.g., 85%)",\n'
+                    '  "diagnosis": "String (Must be exactly one of the 3 conditions above)",\n'
+                    '  "confidence": "String (Convert raw confidence to a percentage, e.g., 97%)",\n'
                     '  "indicators": [\n'
-                    '    {"icon": "warning|volume|run|pets", "text": "Short warning text", "color": "orange|red|amber"}\n'
+                    '    {"icon": "warning", "text": "Short symptom text", "color": "red"}\n'
                     "  ],\n"
                     '  "actions": [\n'
-                    '    {"title": "Action title", "desc": "Detailed explanation of what the owner should do."}\n'
+                    '    {"title": "Action title", "desc": "Detailed explanation."}\n'
                     "  ]\n"
-                    "}"
+                    "}\n"
+                    "DO NOT use old keys like 'detected_behavior'. YOU MUST ONLY use the schema above."
                 )
 
-                user_prompt = f"User Description: {description}\nRaw AI Output: {raw_result}"
+                # THE TRICK: Extract values so Groq doesn't copy the raw JSON keys
+                raw_behavior = raw_result.get("detected_behavior", "Unknown")
+                raw_conf = raw_result.get("confidence", 0.0)
+                
+                user_prompt = (
+                    f"User Description: {description}\n"
+                    f"AI Detection: {raw_behavior}\n"
+                    f"AI Confidence: {raw_conf}\n\n"
+                    "Translate this data into the required JSON schema."
+                )
 
                 chat_completion = groq_client.chat.completions.create(
                     messages=[
@@ -202,7 +206,8 @@ async def analyze_behavior(
             
             except Exception as e:
                 print(f"Groq formatting failed, using fallback logic: {e}")
-        
+
+
         # ── 3. Fallback logic if Groq fails or is missing ──────────────
         if not final_ui_result:
             final_ui_result = {
